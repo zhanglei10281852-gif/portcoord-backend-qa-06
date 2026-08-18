@@ -116,10 +116,7 @@ func (s *SQLiteStore) ReserveQuota(ctx context.Context, id string, amount, versi
 	if err != nil {
 		return 0, fmt.Errorf("reserve quota: %w", err)
 	}
-	n, rowsErr := res.RowsAffected()
-	if rowsErr != nil {
-		return 0, fmt.Errorf("reserve quota affected rows: %w", rowsErr)
-	}
+	n, _ := res.RowsAffected()
 	return int(n), nil
 }
 
