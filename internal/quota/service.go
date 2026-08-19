@@ -139,8 +139,17 @@ func (s *Service) reserveWithRetry(ctx context.Context, qt domain.QuotaType, dat
 		if affected > 0 {
 			return true, q.ID, nil
 		}
-		if affected == 0 {
-			return false, q.ID, nil
+		// affected == 0: a concurrent writer bumped the quota version between
+		// our read and write (optimistic-lock conflict). The pre-check above
+		// guarantees available >= amount when the version still matches, so a
+		// zero-affected update can only mean a stale version. Re-read the
+		// latest quota and retry instead of reporting exhaustion, which would
+		// reject a request that may still be satisfiable.
+		if attempt < maxRetries {
+			if err := waitForContention(ctx, attempt); err != nil {
+				return false, q.ID, err
+			}
+			continue
 		}
 	}
 	return false, "", apperr.Conflict("quota", string(qt), 0)
